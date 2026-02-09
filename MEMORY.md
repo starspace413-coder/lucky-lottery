@@ -38,3 +38,4 @@ Last updated: 2026-02-08
 - Low-cost solutions preferred (free tiers, local processing)
 - Interested in AI image + video generation for research/creativity
 - Memory policy preference (2026-02-09): daily/流水帳記憶可自動處理（可用 `gpt-oss:20b`）；永久記憶 `MEMORY.md` 僅在用戶明確要求時才更新
+- Update communication preference (2026-02-10): 有更新消息要主動告知，並附「升級好處/壞處」評估分析後再讓用戶決定是否升級
