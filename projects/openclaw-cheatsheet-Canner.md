@@ -1,7 +1,34 @@
 # OpenClaw Cheatsheet（給 Canner）
 
 > 目的：把你最常用、最有用的 CLI 操作整理成「真的跑得動」的版本。
-> 
+
+---
+
+## 0) 你的環境專用（最常用 5 行）
+
+### A) 先確認你用的是新版 openclaw（避免撞到 `/usr/bin/openclaw` 舊版）
+```bash
+which openclaw
+openclaw --version
+~/.npm-global/bin/openclaw --version
+```
+
+### B) 目前穩定配置（2026-02-11）
+- 因 google-antigravity OAuth 額度滿：已把 embedded agent **primary 暫時切到** `openai-codex/gpt-5.2`
+- 若要看目前生效設定：
+```bash
+openclaw gateway call config.get --params '{}'
+```
+
+### C) 快速排查（90% 時候先跑這三個）
+```bash
+openclaw gateway status
+openclaw gateway probe
+openclaw logs --limit 200
+```
+
+---
+
 > ⚠️ 注意：我在這個環境跑 `openclaw --help` 時有看到提示「CLI 版本較舊（2026.2.6-3），config 是 2026.2.9 寫的」。這通常代表 **路徑上還有舊的 `/usr/bin/openclaw`**。你之前已用 `~/.bashrc` alias 指到 `~/.npm-global/bin/openclaw` 解掉；若你在非互動 shell 又看到舊版，記得用完整路徑執行：
 > 
 > ```bash
