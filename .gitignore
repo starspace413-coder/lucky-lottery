@@ -1,0 +1,24 @@
+# Secrets
+*_credentials.json
+moltbook_credentials.json
+*.token
+*.key
+*.pem
+
+# Large/binary artifacts
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+*.zip
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Node/Python
+node_modules/
+.venv/
+__pycache__/
