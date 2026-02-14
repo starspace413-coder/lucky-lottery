@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎰 樂透幸運號碼</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; background: linear-gradient(135deg, #1a1a2e, #16213e); min-height: 100vh; padding: 15px; color: #fff; }
+        .container { max-width: 500px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 1.8em; background: linear-gradient(45deg, #ffd700, #ff8c00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 5px; }
+        .card { background: rgba(255,255,255,0.1); border-radius: 15px; padding: 15px; margin-bottom: 12px; }
+        .mode-btns { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 15px; }
+        .mode-btn { flex: 1; min-width: 60px; padding: 10px 5px; border: 2px solid transparent; border-radius: 8px; background: rgba(255,255,255,0.1); color: #fff; cursor: pointer; font-size: 0.8em; }
+        .mode-btn.active { border-color: #ffd700; background: rgba(255,215,0,0.2); }
+        .numbers { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 15px 0; }
+        .ball { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em; font-weight: bold; background: linear-gradient(145deg, #667eea, #764ba2); animation: float 2s infinite; }
+        .ball.special { background: linear-gradient(145deg, #f093fb, #f5576c); }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+        .special-text { text-align: center; color: #f5576c; font-weight: bold; margin-top: 8px; }
+        .btn { background: linear-gradient(45deg, #ffd700, #ff8c00); border: none; padding: 12px 25px; font-size: 1em; border-radius: 20px; cursor: pointer; color: #1a1a2e; font-weight: bold; margin: 5px; }
+        .btn-outline { background: transparent; border: 2px solid #ffd700; color: #ffd700; }
+        .tags { text-align: center; margin-top: 10px; }
+        .tag { display: inline-block; padding: 5px 10px; border-radius: 12px; font-size: 0.75em; margin: 2px; }
+        .tag-yes { background: rgba(0,255,127,0.2); color: #00ff7f; }
+        .tag-no { background: rgba(255,99,71,0.2); color: #ff6347; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .stat { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; text-align: center; }
+        .stat-val { font-size: 1.2em; font-weight: bold; color: #ffd700; }
+        .stat-label { font-size: 0.7em; color: #aaa; }
+        .num-list { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+        .num-tag { padding: 4px 8px; border-radius: 10px; font-size: 0.75em; }
+        .num-hot { background: rgba(255,107,107,0.3); color: #ff6b6b; }
+        .num-cold { background: rgba(78,205,196,0.3); color: #4ecdc4; }
+        .fav-item { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .del-btn { background: rgba(255,99,71,0.3); border: none; color: #ff6347; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+        .tips { text-align: center; color: #666; font-size: 0.65em; margin-top: 15px; padding: 10px; background: rgba(255,0,0,0.1); border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎰 樂透幸運號碼</h1>
+        
+        <div class="card">
+            <div class="mode-btns">
+                <button class="mode-btn active" data-mode="balanced">⚖️平衡</button>
+                <button class="mode-btn" data-mode="hot">🔥熱門</button>
+                <button class="mode-btn" data-mode="cold">❄️冷門</button>
+                <button class="mode-btn" data-mode="drag">📌拖牌</button>
+            </div>
+            
+            <div class="numbers" id="numbers"></div>
+            <p class="special-text">⭐ 特別號: <span id="special">-</span></p>
+            
+            <div class="tags">
+                <span class="tag" id="consTag"></span>
+                <span class="tag" id="repeatTag"></span>
+            </div>
+            
+            <div style="text-align: center; margin-top: 15px;">
+                <button class="btn" id="genBtn">🔄 重新產生</button>
+                <button class="btn btn-outline" id="favBtn">❤️收藏</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="stats">
+                <div class="stat"><div class="stat-val" id="consRate">-</div><div class="stat-label">連號機率</div></div>
+                <div class="stat"><div class="stat-val" id="repeatRate">-</div><div class="stat-label">重複機率</div></div>
+                <div class="stat"><div class="stat-val" id="totalDraws">-</div><div class="stat-label">分析期數</div></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div style="font-size:0.9em;margin-bottom:8px;">🔥 熱門號碼</div>
+            <div class="num-list" id="hotNums"></div>
+        </div>
+        
+        <div class="card">
+            <div style="font-size:0.9em;margin-bottom:8px;">❄️ 冷門號碼</div>
+            <div class="num-list" id="coldNums"></div>
+        </div>
+        
+        <div class="card">
+            <div style="font-size:0.9em;margin-bottom:8px;">❤️ 我的收藏</div>
+            <div id="favList"></div>
+        </div>
+        
+        <div class="tips">⚠️ 樂透為完全隨機，此僅供娛樂參考</div>
+    </div>
+
+    <script>
+        // 數據
+        let data = [];
+        let stats = { counter: {}, hot: [], cold: [] };
+        let currentMode = 'balanced';
+        let currentNums = [];
+        let currentSpecial = 0;
+        
+        // 論文參數
+        const CONS_RATE = 0.56;
+        const REPEAT_RATE = 0.20;
+        
+        // 初始化
+        init();
+        
+        async function init() {
+            await loadData();
+            analyze();
+            generate();
+            renderFavorites();
+            
+            // 按鈕事件
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.onclick = () => {
+                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentMode = btn.dataset.mode;
+                    generate();
+                };
+            });
+            
+            document.getElementById('genBtn').onclick = generate;
+            document.getElementById('favBtn').onclick = saveFav;
+        }
+        
+        async function loadData() {
+            const months = ['2025-09','2025-10','2025-11','2025-12','2026-01','2026-02'];
+            
+            for (let m of months) {
+                try {
+                    let r = await fetch(`https://api.taiwanlottery.com/TLCAPIWeB/Lottery/Lotto649Result?period&month=${m}&pageNum=1&pageSize=50`);
+                    let d = await r.json();
+                    if (d.content && d.content.lotto649Res) {
+                        data.push(...d.content.lotto649Res);
+                    }
+                } catch(e) {}
+            }
+            
+            if (data.length === 0) {
+                // 離線樣本
+                for (let i = 0; i < 50; i++) {
+                    let nums = [];
+                    while (nums.length < 6) {
+                        let n = Math.floor(Math.random() * 49) + 1;
+                        if (!nums.includes(n)) nums.push(n);
+                    }
+                    data.push({
+                        drawNumberSize: [...nums.sort((a,b)=>a-b), Math.floor(Math.random() * 49) + 1]
+                    });
+                }
+            }
+        }
+        
+        function analyze() {
+            let main = [], special = [], cons = 0, repeat = 0, prev = null;
+            
+            data.forEach(d => {
+                let nums = d.drawNumberSize || [];
+                if (nums.length >= 7) {
+                    let m = nums.slice(0,6).sort((a,b)=>a-b);
+                    main.push(...m);
+                    special.push(nums[6]);
+                    
+                    // 連號
+                    for (let i = 0; i < m.length-1; i++) {
+                        if (m[i+1] - m[i] === 1) cons++;
+                    }
+                    // 重複
+                    if (prev) {
+                        let c = m.filter(x => prev.includes(x)).length;
+                        if (c >= 2) repeat++;
+                    }
+                    prev = m;
+                }
+            });
+            
+            // 計數
+            let counter = {};
+            main.forEach(n => counter[n] = (counter[n] || 0) + 1);
+            
+            // 排序
+            let sorted = Object.entries(counter).sort((a,b) => b[1] - a[1]);
+            stats = { counter, hot: sorted.slice(0,10).map(x=>parseInt(x[0])), cold: sorted.slice(-10).reverse().map(x=>parseInt(x[0])) };
+            
+            // 顯示
+            document.getElementById('consRate').textContent = (cons / data.length * 100).toFixed(1) + '%';
+            document.getElementById('repeatRate').textContent = (repeat / (data.length-1) * 100).toFixed(1) + '%';
+            document.getElementById('totalDraws').textContent = data.length;
+            document.getElementById('hotNums').innerHTML = stats.hot.map(n => `<span class="num-tag num-hot">${n}</span>`).join('');
+            document.getElementById('coldNums').innerHTML = stats.cold.map(n => `<span class="num-tag num-cold">${n}</span>`).join('');
+        }
+        
+        function generate() {
+            let { counter, hot, cold } = stats;
+            let all = Array.from({length: 49}, (_,i) => i + 1);
+            let weights = all.map(n => (counter[n] || 0) + 1);
+            
+            // 論文模型
+            let hasCons = Math.random() < CONS_RATE;
+            let hasRepeat = Math.random() < REPEAT_RATE;
+            
+            let selected = [];
+            
+            // 模式選擇
+            if (currentMode === 'hot') {
+                selected = hot.slice(0,6).sort((a,b) => a-b);
+            } else if (currentMode === 'cold') {
+                selected = [...cold].slice(0,6).sort((a,b) => a-b);
+            } else if (currentMode === 'drag' && data.length > 0) {
+                let prev = data[0].drawNumberSize.slice(0,6);
+                selected = prev.slice(0, Math.min(3, prev.length));
+            } else {
+                // balanced
+                if (hasRepeat && data.length > 0) {
+                    let prev = data[0].drawNumberSize.slice(0,6);
+                    selected = prev.slice(0, Math.min(2, prev.length));
+                }
+                if (hasCons) {
+                    let base = Math.floor(Math.random() * 48) + 1;
+                    if (!selected.includes(base)) selected.push(base);
+                    if (!selected.includes(base+1) && base < 49) selected.push(base+1);
+                }
+            }
+            
+            // 補滿6個
+            while (selected.length < 6) {
+                let idx = Math.floor(Math.random() * 49);
+                let n = all[idx];
+                if (!selected.includes(n)) selected.push(n);
+            }
+            
+            selected = selected.slice(0,6).sort((a,b) => a-b);
+            
+            // 特別號
+            let avail = all.filter(n => !selected.includes(n));
+            let specWeights = avail.map(n => (counter[n] || 0) + 1);
+            let specIdx = Math.floor(Math.random() * avail.length);
+            currentSpecial = avail[specIdx];
+            
+            currentNums = selected;
+            
+            // 顯示
+            document.getElementById('numbers').innerHTML = selected.map(n => `<div class="ball">${n}</div>`).join('');
+            document.getElementById('special').textContent = currentSpecial;
+            
+            document.getElementById('consTag').className = 'tag ' + (hasCons ? 'tag-yes' : 'tag-no');
+            document.getElementById('consTag').textContent = hasCons ? '✅ 有連號' : '❌ 無連號';
+            document.getElementById('repeatTag').className = 'tag ' + (hasRepeat ? 'tag-yes' : 'tag-no');
+            document.getElementById('repeatTag').textContent = hasRepeat ? '✅ 參考上期' : '❌ 全新組合';
+        }
+        
+        function saveFav() {
+            let favs = JSON.parse(localStorage.getItem('lotto_favs') || '[]');
+            favs.unshift({ nums: [...currentNums], special: currentSpecial });
+            favs = favs.slice(0, 20);
+            localStorage.setItem('lotto_favs', JSON.stringify(favs));
+            renderFavorites();
+        }
+        
+        function renderFavorites() {
+            let favs = JSON.parse(localStorage.getItem('lotto_favs') || '[]');
+            let el = document.getElementById('favList');
+            if (favs.length === 0) {
+                el.innerHTML = '<p style="color:#aaa;text-align:center;font-size:0.85em;">尚無收藏</p>';
+                return;
+            }
+            el.innerHTML = favs.map((f, i) => `
+                <div class="fav-item">
+                    <span>${f.nums.join(', ')} <span style="color:#f55768">⭐${f.special}</span></span>
+                    <button class="del-btn" onclick="delFav(${i})">刪</button>
+                </div>
+            `).join('');
+        }
+        
+        function delFav(i) {
+            let favs = JSON.parse(localStorage.getItem('lotto_favs') || '[]');
+            favs.splice(i, 1);
+            localStorage.setItem('lotto_favs', JSON.stringify(favs));
+            renderFavorites();
+        }
+    </script>
+</body>
+</html>
