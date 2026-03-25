@@ -10,7 +10,10 @@ description: 使用 MiniMax Coding Plan MCP 進行網路搜尋和圖片理解。
 目前已知常見工具：
 - `web_search`
 - `understand_image`
-- `search_mini_max_api_docs`（MiniMax 官方文件 MCP 搜尋）
+
+注意：`search_mini_max_api_docs` 是 **MiniMax 官方文件自己的 docs MCP server** 暴露的 tool，
+**不是** 目前這個 `minimax-coding-plan-mcp` 本地 server 直接提供的 tool。
+所以在現有工作流中，先用 `web_search` + `site:platform.minimax.io/docs` 當實用 fallback。
 
 ## 先列出可用工具
 
@@ -43,7 +46,16 @@ MINIMAX_API_KEY="$MINIMAX_CODING_PLAN_API_KEY" MINIMAX_API_HOST="https://api.min
 
 ```bash
 cd ~/.openclaw/workspace
-MINIMAX_API_KEY="$MINIMAX_CODING_PLAN_API_KEY" MINIMAX_API_HOST="https://api.minimax.io" node scripts/minimax_mcp_client.js search_mini_max_api_docs '{"query":"MCP server setup"}'
+./scripts/minimax_mcp.sh search_mini_max_api_docs '{"query":"MCP server setup"}'
+```
+
+## 使用時機
+
+- 用戶問「搜尋...」
+- 用戶問「查一下...」
+- 用戶傳圖片並問「這是什麼」
+- 需要最新資訊時
+js search_mini_max_api_docs '{"query":"MCP server setup"}'
 ```
 
 ## 使用時機
