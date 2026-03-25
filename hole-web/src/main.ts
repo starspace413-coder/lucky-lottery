@@ -428,8 +428,7 @@ class GameScene extends Phaser.Scene {
     this.updateHud()
   }
 
-  private updateBots(dtMs: number) {
-    const dt = dtMs / 1000
+  private updateBots(_dtMs: number) {
     for (let i = this.bots.length - 1; i >= 0; i--) {
       const bot = this.bots[i]
       const b = bot.sprite
@@ -439,7 +438,7 @@ class GameScene extends Phaser.Scene {
       }
 
       // State machine logic
-      bot.stateTimer -= dtMs
+      bot.stateTimer -= _dtMs
       const distToPlayer = Phaser.Math.Distance.Between(b.x, b.y, this.hole.x, this.hole.y)
       
       // State transitions
