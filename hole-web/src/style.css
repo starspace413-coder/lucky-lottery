@@ -78,6 +78,7 @@ html, body {
 #overlay {
   position: absolute;
   inset: 0;
+  z-index: 30;
   display: grid;
   place-items: center;
   background: rgba(0,0,0,0.35);

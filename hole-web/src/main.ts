@@ -380,7 +380,12 @@ class GameScene extends Phaser.Scene {
             this.updateHud()
           }
         } else if (d < this.holeR * 0.6) {
-          this.sfx.bump()
+          // Nudge player away from oversized objects so it doesn't feel stuck
+          const push = Math.max(8, (this.holeR * 0.6 - d) * 0.35)
+          const nx = d > 0.001 ? -dx / d : 0
+          const ny = d > 0.001 ? -dy / d : 0
+          this.hole.x += nx * push
+          this.hole.y += ny * push
         }
       }
     }
@@ -396,7 +401,7 @@ class GameScene extends Phaser.Scene {
 
   private updateBots(dtMs: number) {
     const zone = this.getZone()
-    const botBase = zone === 'Chaos' ? 290 : zone === 'Busy' ? 260 : 230
+    const botBase = zone === 'Chaos' ? 225 : zone === 'Busy' ? 205 : 185
 
     for (let i = this.bots.length - 1; i >= 0; i--) {
       const bot = this.bots[i]
