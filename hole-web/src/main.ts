@@ -35,10 +35,20 @@ class Sfx {
   eatBig() { this.blip(140 + Math.random() * 30, 70, 0.05) }
   levelUp() { this.blip(320, 60, 0.05); setTimeout(() => this.blip(420, 60, 0.045), 55) }
   bump() { this.blip(90, 80, 0.04) }
+  skillPickup() { this.blip(600, 100, 0.06); setTimeout(() => this.blip(800, 100, 0.06), 80) }
 }
 
 type Food = { kind: 'food'; r: number; key: string }
-type Bot = { sprite: Phaser.Physics.Arcade.Image; r: number; target?: Phaser.Math.Vector2 }
+type Item = { kind: 'item'; type: 'boost' | 'magnet' }
+type BotState = 'idle' | 'chase' | 'flee' | 'wander'
+type Bot = {
+  sprite: Phaser.Physics.Arcade.Image
+  r: number
+  target?: Phaser.Math.Vector2
+  state: BotState
+  stateTimer: number
+  speedMult: number
+}
 
 const overlay = document.getElementById('overlay')!
 const overlayTitle = document.getElementById('overlay-title') as HTMLHeadingElement
@@ -49,6 +59,7 @@ const muteBtn = document.getElementById('mute') as HTMLButtonElement
 const hudSize = document.getElementById('size')!
 const hudEaten = document.getElementById('eaten')!
 const hudZone = document.getElementById('zone')!
+const hudSkill = document.getElementById('skill')!
 
 class GameScene extends Phaser.Scene {
   private worldW = 2400
@@ -57,10 +68,15 @@ class GameScene extends Phaser.Scene {
   private holeR = 24
   private holeTarget?: Phaser.Math.Vector2
   private foods!: Phaser.GameObjects.Group
+  private items!: Phaser.GameObjects.Group
   private bots: Bot[] = []
   private eaten = 0
   private sfx = new Sfx()
   private gameOver = false
+
+  // Skill state
+  private activeSkill: 'none' | 'boost' | 'magnet' = 'none'
+  private skillTimer = 0
 
   constructor() { super('game') }
 
@@ -86,6 +102,10 @@ class GameScene extends Phaser.Scene {
     this.load.svg('ph-tower', 'assets/ai/placeholder-tower.svg', { width: 256, height: 256 })
     this.load.svg('ph-bus', 'assets/ai/placeholder-bus.svg', { width: 256, height: 256 })
     this.load.svg('ph-house', 'assets/ai/placeholder-house.svg', { width: 256, height: 256 })
+
+    // Skill icons
+    this.load.svg('icon-boost', 'assets/ai/placeholder-boost.svg', { width: 64, height: 64 })
+    this.load.svg('icon-magnet', 'assets/ai/placeholder-magnet.svg', { width: 64, height: 64 })
   }
 
   create() {
@@ -93,6 +113,8 @@ class GameScene extends Phaser.Scene {
     this.holeR = 24
     this.eaten = 0
     this.bots = []
+    this.activeSkill = 'none'
+    this.skillTimer = 0
 
     this.physics.world.setBounds(0, 0, this.worldW, this.worldH)
 
@@ -113,9 +135,13 @@ class GameScene extends Phaser.Scene {
     this.hole.setDisplaySize(this.holeR * 2, this.holeR * 2)
 
     this.foods = this.add.group()
-    for (let i = 0; i < 280; i++) this.spawnFood()
+    this.items = this.add.group()
 
+    for (let i = 0; i < 280; i++) this.spawnFood()
     for (let i = 0; i < 3; i++) this.spawnBot()
+    // Initial skill items
+    this.spawnItem('boost')
+    this.spawnItem('magnet')
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       this.holeTarget = new Phaser.Math.Vector2(p.worldX, p.worldY)
@@ -130,6 +156,7 @@ class GameScene extends Phaser.Scene {
 
     this.updateHud()
 
+    // Food respawn
     this.time.addEvent({
       delay: 450,
       loop: true,
@@ -142,14 +169,26 @@ class GameScene extends Phaser.Scene {
       },
     })
 
+    // Bot maintenance
     this.time.addEvent({
       delay: 1200,
       loop: true,
       callback: () => {
         if (this.gameOver) return
         const zone = this.getZone()
-        const targetBots = zone === 'Chaos' ? 5 : zone === 'Busy' ? 4 : 3
+        const targetBots = zone === 'Chaos' ? 6 : zone === 'Busy' ? 4 : 3
         while (this.bots.length < targetBots) this.spawnBot()
+      },
+    })
+
+    // Item respawn
+    this.time.addEvent({
+      delay: 5000,
+      loop: true,
+      callback: () => {
+        if (this.items.getLength() < 4) {
+          this.spawnItem(Math.random() > 0.5 ? 'boost' : 'magnet')
+        }
       },
     })
   }
@@ -190,21 +229,56 @@ class GameScene extends Phaser.Scene {
     this.foods.add(obj)
   }
 
-  private spawnBot() {
-    const r = Phaser.Math.Between(Math.max(12, this.holeR - 8), Math.max(18, this.holeR + 10))
-    const x = Phaser.Math.Between(r, this.worldW - r)
-    const y = Phaser.Math.Between(r, this.worldH - r)
+  private spawnItem(type: 'boost' | 'magnet') {
+    const x = Phaser.Math.Between(50, this.worldW - 50)
+    const y = Phaser.Math.Between(50, this.worldH - 50)
+    const key = type === 'boost' ? 'icon-boost' : 'icon-magnet'
+    const item = this.add.image(x, y, key).setDepth(6)
+    
+    // Add glowing tween
+    this.tweens.add({
+      targets: item,
+      scale: { from: 0.8, to: 1.0 },
+      alpha: { from: 0.8, to: 1 },
+      yoyo: true,
+      repeat: -1,
+      duration: 800
+    })
 
+    ;(item as any).data = { kind: 'item', type } satisfies Item
+    this.items.add(item)
+  }
+
+  private spawnBot() {
+    // Spawn away from player if possible
+    let x, y, dist
+    let attempts = 0
+    do {
+      x = Phaser.Math.Between(50, this.worldW - 50)
+      y = Phaser.Math.Between(50, this.worldH - 50)
+      dist = Phaser.Math.Distance.Between(x, y, this.hole.x, this.hole.y)
+      attempts++
+    } while (dist < 400 && attempts < 5)
+
+    const r = Phaser.Math.Between(Math.max(12, this.holeR - 8), Math.max(18, this.holeR + 15))
+    
     const sprite = this.physics.add.image(x, y, this.pickAvailable('hole', 'ph-hole'))
       .setDepth(9)
-      .setTint(0xff6b6b)
+      .setTint(0xff6b6b) // Red tint for enemies
       .setAlpha(0.92)
 
     sprite.setCircle(r)
     sprite.setCollideWorldBounds(true)
     sprite.setDisplaySize(r * 2, r * 2)
 
-    this.bots.push({ sprite, r, target: new Phaser.Math.Vector2(x, y) })
+    this.bots.push({
+      sprite,
+      r,
+      target: new Phaser.Math.Vector2(x, y),
+      state: 'wander',
+      stateTimer: 0,
+      speedMult: Phaser.Math.FloatBetween(0.85, 1.1)
+    })
   }
 
   private getZone() {
@@ -225,6 +299,14 @@ class GameScene extends Phaser.Scene {
     overlay.style.display = 'grid'
   }
 
+  private activateSkill(type: 'boost' | 'magnet') {
+    this.activeSkill = type
+    this.skillTimer = 5000 // 5 seconds
+    this.sfx.skillPickup()
+    hudSkill.textContent = type === 'boost' ? 'BOOST! ⚡' : 'MAGNET! 🧲'
+    hudSkill.style.color = type === 'boost' ? '#fde047' : '#f472b6'
+  }
+
   update(_: number, dtMs: number) {
     if (this.gameOver) return
 
@@ -232,8 +314,22 @@ class GameScene extends Phaser.Scene {
     const zone = this.getZone()
     hudZone.textContent = zone
 
+    // Update skill
+    if (this.skillTimer > 0) {
+      this.skillTimer -= dtMs
+      if (this.skillTimer <= 0) {
+        this.activeSkill = 'none'
+        hudSkill.textContent = 'None'
+        hudSkill.style.color = ''
+      }
+    }
+
+    // Player movement
+    let baseSpeed = 520 - (this.holeR - 24) * 3.2
+    if (this.activeSkill === 'boost') baseSpeed *= 1.6
+    
     const zoneSpeedBoost = zone === 'Chaos' ? 1.08 : zone === 'Busy' ? 1.02 : 1
-    const speed = Phaser.Math.Clamp((520 - (this.holeR - 24) * 3.2) * zoneSpeedBoost, 170, 560)
+    const speed = Phaser.Math.Clamp(baseSpeed * zoneSpeedBoost, 170, 800)
 
     if (this.holeTarget) {
       const dx = this.holeTarget.x - this.hole.x
@@ -243,10 +339,23 @@ class GameScene extends Phaser.Scene {
       else this.hole.setVelocity(0, 0)
     }
 
-    const eatRange = this.holeR * 0.92
-    const eatCap = this.holeR * 0.9
-    const foods = this.foods.getChildren() as Phaser.GameObjects.Image[]
+    // Eat check logic
+    const magnetMult = this.activeSkill === 'magnet' ? 1.5 : 1.0
+    const eatRange = this.holeR * 0.92 * magnetMult
+    const eatCap = this.holeR * 0.90
 
+    // Check items
+    const items = this.items.getChildren() as Phaser.GameObjects.Image[]
+    for (const item of items) {
+      if (Phaser.Math.Distance.Between(this.hole.x, this.hole.y, item.x, item.y) < this.holeR) {
+        const data = (item as any).data as Item
+        this.activateSkill(data.type)
+        this.items.remove(item, true, true)
+      }
+    }
+
+    // Check food
+    const foods = this.foods.getChildren() as Phaser.GameObjects.Image[]
     for (let i = foods.length - 1; i >= 0; i--) {
       const f = foods[i]
       const r = (f as any).data.r as number
@@ -256,50 +365,14 @@ class GameScene extends Phaser.Scene {
 
       if (d < eatRange + r * 0.5) {
         if (r < eatCap) {
+          // Pull effect
+          const pullStr = this.activeSkill === 'magnet' ? 12.0 : 6.5
           const pull = Phaser.Math.Clamp((eatRange + r - d) / (eatRange + r), 0, 1)
-          f.x -= dx * pull * 6.5 * dt
-          f.y -= dy * pull * 6.5 * dt
+          f.x -= dx * pull * pullStr * dt
+          f.y -= dy * pull * pullStr * dt
 
           if (d < this.holeR * 0.52) {
-            this.foods.remove(f)
-            this.tweens.add({
-              targets: f,
-              x: this.hole.x,
-              y: this.hole.y,
-              scaleX: 0.08,
-              scaleY: 0.08,
-              angle: f.angle + Phaser.Math.Between(120, 260),
-              alpha: 0,
-              duration: Phaser.Math.Between(90, 140),
-              ease: 'Quad.easeIn',
-              onComplete: () => f.destroy(),
-            })
-
-            this.eaten += 1
-            const before = this.holeR
-            const gain = Phaser.Math.Clamp(r / 90, 0.03, 0.35)
-            this.holeR += gain
-            this.hole.setCircle(this.holeR)
-            this.hole.setDisplaySize(this.holeR * 2, this.holeR * 2)
-
-            const zoom = Phaser.Math.Clamp(1.08 - (this.holeR - 24) / 420, 0.6, 1.08)
-            this.cameras.main.setZoom(zoom)
-
-            if (Math.floor(before) !== Math.floor(this.holeR)) this.sfx.levelUp()
-            else if (r < 12) this.sfx.eatSmall()
-            else this.sfx.eatBig()
-
-            this.tweens.killTweensOf(this.hole)
-            this.tweens.add({
-              targets: this.hole,
-              scaleX: 1.1,
-              scaleY: 1.1,
-              duration: 70,
-              yoyo: true,
-              ease: 'Sine.easeOut',
-            })
-
-            this.updateHud()
+            this.consumeFood(f, r)
           }
         } else if (d < this.holeR * 0.6) {
           this.sfx.bump()
@@ -307,9 +380,56 @@ class GameScene extends Phaser.Scene {
       }
     }
 
-    // Bots AI + bot-vs-player interaction
-    const botBase = zone === 'Chaos' ? 290 : zone === 'Busy' ? 260 : 230
+    // Update Bots
+    this.updateBots(dtMs)
 
+    if (this.hole.body && (this.hole.body as Phaser.Physics.Arcade.Body).speed < 3) this.hole.setVelocity(0, 0)
+  }
+
+  private consumeFood(f: Phaser.GameObjects.Image, r: number) {
+    this.foods.remove(f)
+    this.tweens.add({
+      targets: f,
+      x: this.hole.x,
+      y: this.hole.y,
+      scaleX: 0.08,
+      scaleY: 0.08,
+      angle: f.angle + Phaser.Math.Between(120, 260),
+      alpha: 0,
+      duration: Phaser.Math.Between(90, 140),
+      ease: 'Quad.easeIn',
+      onComplete: () => f.destroy(),
+    })
+
+    this.eaten += 1
+    const before = this.holeR
+    const gain = Phaser.Math.Clamp(r / 90, 0.03, 0.35)
+    this.holeR += gain
+    this.hole.setCircle(this.holeR)
+    this.hole.setDisplaySize(this.holeR * 2, this.holeR * 2)
+
+    const zoom = Phaser.Math.Clamp(1.08 - (this.holeR - 24) / 420, 0.6, 1.08)
+    this.cameras.main.setZoom(zoom)
+
+    if (Math.floor(before) !== Math.floor(this.holeR)) this.sfx.levelUp()
+    else if (r < 12) this.sfx.eatSmall()
+    else this.sfx.eatBig()
+
+    this.tweens.killTweensOf(this.hole)
+    this.tweens.add({
+      targets: this.hole,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 70,
+      yoyo: true,
+      ease: 'Sine.easeOut',
+    })
+
+    this.updateHud()
+  }
+
+  private updateBots(dtMs: number) {
+    const dt = dtMs / 1000
     for (let i = this.bots.length - 1; i >= 0; i--) {
       const bot = this.bots[i]
       const b = bot.sprite
@@ -318,57 +438,111 @@ class GameScene extends Phaser.Scene {
         continue
       }
 
-      // choose target behavior
+      // State machine logic
+      bot.stateTimer -= dtMs
       const distToPlayer = Phaser.Math.Distance.Between(b.x, b.y, this.hole.x, this.hole.y)
-      if (distToPlayer < 420) {
-        // if bot bigger -> chase; else flee
-        if (bot.r > this.holeR * 1.04) bot.target = new Phaser.Math.Vector2(this.hole.x, this.hole.y)
-        else bot.target = new Phaser.Math.Vector2(b.x - (this.hole.x - b.x), b.y - (this.hole.y - b.y))
-      } else if (!bot.target || Phaser.Math.Distance.Between(b.x, b.y, bot.target.x, bot.target.y) < 40) {
-        bot.target = new Phaser.Math.Vector2(
-          Phaser.Math.Between(0, this.worldW),
-          Phaser.Math.Between(0, this.worldH),
-        )
+      
+      // State transitions
+      if (bot.state === 'flee' && distToPlayer > 600) {
+        bot.state = 'wander'
+        bot.stateTimer = 0
       }
 
-      const dx = bot.target.x - b.x
-      const dy = bot.target.y - b.y
-      const d = Math.hypot(dx, dy) || 1
-      const botSpeed = Phaser.Math.Clamp(botBase - (bot.r - 20) * 2.5, 120, botBase)
-      b.setVelocity((dx / d) * botSpeed, (dy / d) * botSpeed)
+      // Check threats
+      if (distToPlayer < 400) {
+        if (this.holeR > bot.r * 1.05) {
+          bot.state = 'flee'
+          bot.stateTimer = 1000
+        } else if (bot.r > this.holeR * 1.05) {
+          bot.state = 'chase'
+          bot.stateTimer = 2000
+        }
+      }
 
-      // player vs bot consume logic
-      const playerBotDist = Phaser.Math.Distance.Between(this.hole.x, this.hole.y, b.x, b.y)
-      if (playerBotDist < (this.holeR + bot.r) * 0.58) {
-        if (this.holeR > bot.r * 1.06) {
-          // player eats bot
-          this.tweens.add({
-            targets: b,
-            x: this.hole.x,
-            y: this.hole.y,
-            scaleX: 0.05,
-            scaleY: 0.05,
-            alpha: 0,
-            duration: 130,
-            onComplete: () => b.destroy(),
-          })
+      if (bot.stateTimer <= 0) {
+        // Pick new state
+        if (Math.random() < 0.7) {
+          bot.state = 'wander'
+          bot.stateTimer = Phaser.Math.Between(2000, 5000)
+          // Pick random point
+          bot.target = new Phaser.Math.Vector2(
+            Phaser.Math.Between(50, this.worldW-50),
+            Phaser.Math.Between(50, this.worldH-50)
+          )
+        } else {
+          // Idle briefly
+          bot.state = 'idle'
+          bot.stateTimer = Phaser.Math.Between(500, 1500)
+          bot.target = undefined
+        }
+      }
+
+      // Execute movement
+      let moveSpeed = 0
+      const botBaseSpeed = 240 - (bot.r - 20) * 2.0
+
+      if (bot.state === 'flee') {
+        // Run away from player
+        const angle = Phaser.Math.Angle.Between(this.hole.x, this.hole.y, b.x, b.y)
+        const vec = new Phaser.Math.Vector2().setToPolar(angle, 100)
+        bot.target = new Phaser.Math.Vector2(b.x + vec.x, b.y + vec.y)
+        moveSpeed = botBaseSpeed * 1.3
+      } else if (bot.state === 'chase') {
+        bot.target = new Phaser.Math.Vector2(this.hole.x, this.hole.y)
+        moveSpeed = botBaseSpeed * 1.1
+      } else if (bot.state === 'wander') {
+        moveSpeed = botBaseSpeed * 0.8
+      }
+
+      if (bot.target && bot.state !== 'idle') {
+        const dx = bot.target.x - b.x
+        const dy = bot.target.y - b.y
+        const d = Math.hypot(dx, dy) || 1
+        
+        if (d > 10) {
+          b.setVelocity((dx / d) * moveSpeed * bot.speedMult, (dy / d) * moveSpeed * bot.speedMult)
+        } else {
+          b.setVelocity(0, 0)
+          if (bot.state === 'wander') bot.stateTimer = 0 // Pick new target
+        }
+      } else {
+        b.setVelocity(0, 0)
+      }
+
+      // Check collision with player
+      if (distToPlayer < (this.holeR + bot.r) * 0.6) {
+        // Player eats bot
+        if (this.holeR > bot.r * 1.05) {
           this.bots.splice(i, 1)
-          this.holeR += Phaser.Math.Clamp(bot.r / 140, 0.08, 0.45)
-          this.hole.setCircle(this.holeR)
-          this.hole.setDisplaySize(this.holeR * 2, this.holeR * 2)
-          this.sfx.levelUp()
-          this.updateHud()
+          this.consumeBot(b, bot.r)
           continue
         }
-
-        if (bot.r > this.holeR * 1.02) {
+        // Bot eats player
+        if (bot.r > this.holeR * 1.05) {
           this.setGameOver()
           return
         }
       }
     }
+  }
 
-    if (this.hole.body && (this.hole.body as Phaser.Physics.Arcade.Body).speed < 3) this.hole.setVelocity(0, 0)
+  private consumeBot(b: Phaser.Physics.Arcade.Image, r: number) {
+    this.tweens.add({
+      targets: b,
+      x: this.hole.x,
+      y: this.hole.y,
+      scaleX: 0.05,
+      scaleY: 0.05,
+      alpha: 0,
+      duration: 150,
+      onComplete: () => b.destroy(),
+    })
+    
+    this.holeR += Phaser.Math.Clamp(r / 140, 0.08, 0.45)
+    this.hole.setCircle(this.holeR)
+    this.hole.setDisplaySize(this.holeR * 2, this.holeR * 2)
+    this.sfx.levelUp()
+    this.updateHud()
   }
 
   private updateHud() {
@@ -408,14 +582,11 @@ let game: Phaser.Game | undefined
 
 function bootOrRestart() {
   overlay.style.display = 'none'
-
   if (game) {
     game.destroy(true)
     game = undefined
   }
-
   game = createGame()
-
   const scene = game.scene.getScene('game') as GameScene
   scene.sfxEnsure()
 }
@@ -427,9 +598,7 @@ startBtn.addEventListener('click', () => {
   bootOrRestart()
 })
 
-restartBtn.addEventListener('click', () => {
-  bootOrRestart()
-})
+restartBtn.addEventListener('click', () => bootOrRestart())
 
 muteBtn.addEventListener('click', () => {
   const isOn = muteBtn.textContent?.includes('ON')
