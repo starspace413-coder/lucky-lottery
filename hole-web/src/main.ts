@@ -324,7 +324,9 @@ class GameScene extends Phaser.Scene {
 
     const magnetMult = this.activeSkill === 'magnet' ? 1.5 : 1.0
     const eatRange = this.holeR * 0.92 * magnetMult
-    const eatCap = this.holeR * 0.9
+    // Allow near-threshold objects (cars/buildings) to be swallowed instead of feeling stuck.
+    const eatCap = this.holeR * 1.12
+    const hardBlockCap = this.holeR * 1.45
 
     // Item pickup
     const itemKids = this.items.getChildren()
@@ -349,11 +351,13 @@ class GameScene extends Phaser.Scene {
       if (d < eatRange + r * 0.5) {
         if (r < eatCap) {
           const pull = Phaser.Math.Clamp((eatRange + r - d) / (eatRange + r), 0, 1)
-          const pullStr = this.activeSkill === 'magnet' ? 12.0 : 6.5
+          // Near-threshold objects need stronger suction so they feel swallowable.
+          const nearThresholdBoost = r > this.holeR * 0.9 ? 1.8 : 1.0
+          const pullStr = (this.activeSkill === 'magnet' ? 12.0 : 6.5) * nearThresholdBoost
           f.x -= dx * pull * pullStr * (dtMs / 1000)
           f.y -= dy * pull * pullStr * (dtMs / 1000)
 
-          if (d < this.holeR * 0.52) {
+          if (d < this.holeR * 0.6) {
             this.foods.remove(f, true, true)
             this.eaten += 1
             const before = this.holeR
@@ -379,8 +383,8 @@ class GameScene extends Phaser.Scene {
 
             this.updateHud()
           }
-        } else if (d < this.holeR * 0.6) {
-          // Nudge player away from oversized objects so it doesn't feel stuck
+        } else if (r >= hardBlockCap && d < this.holeR * 0.6) {
+          // Only truly oversized objects should push the player back.
           const push = Math.max(8, (this.holeR * 0.6 - d) * 0.35)
           const nx = d > 0.001 ? -dx / d : 0
           const ny = d > 0.001 ? -dy / d : 0
