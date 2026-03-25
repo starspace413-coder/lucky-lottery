@@ -1,0 +1,117 @@
+/* Full-screen responsive layout with safe-area support */
+:root {
+  --bg: #0b0c10;
+  --fg: #e5e7eb;
+  --muted: rgba(229, 231, 235, 0.75);
+  --pill: rgba(17, 24, 39, 0.72);
+  --pill-border: rgba(255, 255, 255, 0.12);
+  --accent: #8b5cf6;
+
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  touch-action: none; /* we handle gestures */
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(1200px 800px at 50% 40%, #111827, #05060a);
+}
+
+#game {
+  position: absolute;
+  inset: 0;
+}
+
+/* HUD overlays */
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding:
+    calc(env(safe-area-inset-top) + 10px)
+    calc(env(safe-area-inset-right) + 10px)
+    calc(env(safe-area-inset-bottom) + 10px)
+    calc(env(safe-area-inset-left) + 10px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#hud .row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.pill {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--pill);
+  border: 1px solid var(--pill-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 14px;
+}
+
+.button {
+  cursor: pointer;
+  user-select: none;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(2px);
+}
+
+#overlay .panel {
+  width: min(520px, calc(100vw - 32px));
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  background: rgba(17, 24, 39, 0.82);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+#overlay h1 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  letter-spacing: 0.2px;
+}
+
+#overlay p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.45;
+  font-size: 14px;
+}
+
+#overlay .primary {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+canvas {
+  display: block;
+}

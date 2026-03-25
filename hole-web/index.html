@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Hole Web</title>
+  </head>
+  <body>
+    <div id="app">
+      <div id="game"></div>
+      <div id="hud">
+        <div class="row">
+          <div class="pill">Size: <span id="size">1.00</span></div>
+          <div class="pill">Eaten: <span id="eaten">0</span></div>
+        </div>
+        <button id="mute" class="pill button" type="button">SFX: ON</button>
+      </div>
+      <div id="overlay">
+        <div class="panel">
+          <h1>Hole Web</h1>
+          <p>滑鼠移動 / 觸控拖曳。吞小物件變大，無限模式。</p>
+          <button id="start" class="primary" type="button">Start</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
