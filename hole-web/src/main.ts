@@ -38,16 +38,29 @@ class Sfx {
 }
 
 type Food = { kind: 'food'; r: number; key: string }
+type Bot = { sprite: Phaser.Physics.Arcade.Image; r: number; target?: Phaser.Math.Vector2 }
+
+const overlay = document.getElementById('overlay')!
+const overlayTitle = document.getElementById('overlay-title') as HTMLHeadingElement
+const overlayText = document.getElementById('overlay-text') as HTMLParagraphElement
+const startBtn = document.getElementById('start') as HTMLButtonElement
+const restartBtn = document.getElementById('restart') as HTMLButtonElement
+const muteBtn = document.getElementById('mute') as HTMLButtonElement
+const hudSize = document.getElementById('size')!
+const hudEaten = document.getElementById('eaten')!
+const hudZone = document.getElementById('zone')!
 
 class GameScene extends Phaser.Scene {
+  private worldW = 2400
+  private worldH = 2400
   private hole!: Phaser.Physics.Arcade.Image
   private holeR = 24
   private holeTarget?: Phaser.Math.Vector2
   private foods!: Phaser.GameObjects.Group
+  private bots: Bot[] = []
   private eaten = 0
   private sfx = new Sfx()
-  private hudSize = document.getElementById('size')!
-  private hudEaten = document.getElementById('eaten')!
+  private gameOver = false
 
   constructor() { super('game') }
 
@@ -76,18 +89,21 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
-    const worldW = 2400
-    const worldH = 2400
-    this.physics.world.setBounds(0, 0, worldW, worldH)
+    this.gameOver = false
+    this.holeR = 24
+    this.eaten = 0
+    this.bots = []
+
+    this.physics.world.setBounds(0, 0, this.worldW, this.worldH)
 
     const g = this.add.graphics()
     g.fillStyle(0x0b0c10, 1)
-    g.fillRect(0, 0, worldW, worldH)
+    g.fillRect(0, 0, this.worldW, this.worldH)
     g.lineStyle(1, 0x111827, 1)
-    for (let x = 0; x <= worldW; x += 80) g.lineBetween(x, 0, x, worldH)
-    for (let y = 0; y <= worldH; y += 80) g.lineBetween(0, y, worldW, y)
+    for (let x = 0; x <= this.worldW; x += 80) g.lineBetween(x, 0, x, this.worldH)
+    for (let y = 0; y <= this.worldH; y += 80) g.lineBetween(0, y, this.worldW, y)
 
-    this.hole = this.physics.add.image(worldW / 2, worldH / 2, this.pickAvailable('hole', 'ph-hole'))
+    this.hole = this.physics.add.image(this.worldW / 2, this.worldH / 2, this.pickAvailable('hole', 'ph-hole'))
       .setDepth(10)
       .setDamping(true)
       .setDrag(0.0001)
@@ -97,7 +113,9 @@ class GameScene extends Phaser.Scene {
     this.hole.setDisplaySize(this.holeR * 2, this.holeR * 2)
 
     this.foods = this.add.group()
-    for (let i = 0; i < 260; i++) this.spawnFood(worldW, worldH)
+    for (let i = 0; i < 280; i++) this.spawnFood()
+
+    for (let i = 0; i < 3; i++) this.spawnBot()
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       this.holeTarget = new Phaser.Math.Vector2(p.worldX, p.worldY)
@@ -107,24 +125,31 @@ class GameScene extends Phaser.Scene {
     })
 
     this.cameras.main.startFollow(this.hole, true, 0.08, 0.08)
-    this.cameras.main.setBounds(0, 0, worldW, worldH)
+    this.cameras.main.setBounds(0, 0, this.worldW, this.worldH)
     this.cameras.main.setZoom(1.05)
-
-    const muteBtn = document.getElementById('mute') as HTMLButtonElement
-    let muted = false
-    muteBtn.addEventListener('click', () => {
-      muted = !muted
-      this.sfx.setEnabled(!muted)
-      muteBtn.textContent = muted ? 'SFX: OFF' : 'SFX: ON'
-    })
 
     this.updateHud()
 
     this.time.addEvent({
-      delay: 500,
+      delay: 450,
       loop: true,
       callback: () => {
-        if (this.foods.getLength() < 320) for (let i = 0; i < 8; i++) this.spawnFood(worldW, worldH)
+        if (this.foods.getLength() < 340) {
+          const zone = this.getZone()
+          const add = zone === 'Chaos' ? 10 : zone === 'Busy' ? 8 : 6
+          for (let i = 0; i < add; i++) this.spawnFood()
+        }
+      },
+    })
+
+    this.time.addEvent({
+      delay: 1200,
+      loop: true,
+      callback: () => {
+        if (this.gameOver) return
+        const zone = this.getZone()
+        const targetBots = zone === 'Chaos' ? 5 : zone === 'Busy' ? 4 : 3
+        while (this.bots.length < targetBots) this.spawnBot()
       },
     })
   }
@@ -133,10 +158,10 @@ class GameScene extends Phaser.Scene {
     return this.textures.exists(preferred) ? preferred : fallback
   }
 
-  private spawnFood(worldW: number, worldH: number) {
+  private spawnFood() {
     const r = Phaser.Math.Between(6, 26)
-    const x = Phaser.Math.Between(r, worldW - r)
-    const y = Phaser.Math.Between(r, worldH - r)
+    const x = Phaser.Math.Between(r, this.worldW - r)
+    const y = Phaser.Math.Between(r, this.worldH - r)
 
     let key: string
     if (r < 10) {
@@ -165,9 +190,50 @@ class GameScene extends Phaser.Scene {
     this.foods.add(obj)
   }
 
+  private spawnBot() {
+    const r = Phaser.Math.Between(Math.max(12, this.holeR - 8), Math.max(18, this.holeR + 10))
+    const x = Phaser.Math.Between(r, this.worldW - r)
+    const y = Phaser.Math.Between(r, this.worldH - r)
+
+    const sprite = this.physics.add.image(x, y, this.pickAvailable('hole', 'ph-hole'))
+      .setDepth(9)
+      .setTint(0xff6b6b)
+      .setAlpha(0.92)
+
+    sprite.setCircle(r)
+    sprite.setCollideWorldBounds(true)
+    sprite.setDisplaySize(r * 2, r * 2)
+
+    this.bots.push({ sprite, r, target: new Phaser.Math.Vector2(x, y) })
+  }
+
+  private getZone() {
+    const x = this.hole.x
+    if (x < this.worldW / 3) return 'Calm'
+    if (x < (this.worldW * 2) / 3) return 'Busy'
+    return 'Chaos'
+  }
+
+  private setGameOver() {
+    if (this.gameOver) return
+    this.gameOver = true
+    this.hole.setVelocity(0, 0)
+
+    overlayTitle.textContent = '你被吞掉了 💀'
+    overlayText.textContent = `最終 Size ${this.holeR.toFixed(2)}，吞噬 ${this.eaten} 個物件。按下 Restart 再戰。`
+    startBtn.textContent = 'Restart'
+    overlay.style.display = 'grid'
+  }
+
   update(_: number, dtMs: number) {
+    if (this.gameOver) return
+
     const dt = dtMs / 1000
-    const speed = Phaser.Math.Clamp(520 - (this.holeR - 24) * 3.2, 170, 520)
+    const zone = this.getZone()
+    hudZone.textContent = zone
+
+    const zoneSpeedBoost = zone === 'Chaos' ? 1.08 : zone === 'Busy' ? 1.02 : 1
+    const speed = Phaser.Math.Clamp((520 - (this.holeR - 24) * 3.2) * zoneSpeedBoost, 170, 560)
 
     if (this.holeTarget) {
       const dx = this.holeTarget.x - this.hole.x
@@ -241,16 +307,83 @@ class GameScene extends Phaser.Scene {
       }
     }
 
+    // Bots AI + bot-vs-player interaction
+    const botBase = zone === 'Chaos' ? 290 : zone === 'Busy' ? 260 : 230
+
+    for (let i = this.bots.length - 1; i >= 0; i--) {
+      const bot = this.bots[i]
+      const b = bot.sprite
+      if (!b.active) {
+        this.bots.splice(i, 1)
+        continue
+      }
+
+      // choose target behavior
+      const distToPlayer = Phaser.Math.Distance.Between(b.x, b.y, this.hole.x, this.hole.y)
+      if (distToPlayer < 420) {
+        // if bot bigger -> chase; else flee
+        if (bot.r > this.holeR * 1.04) bot.target = new Phaser.Math.Vector2(this.hole.x, this.hole.y)
+        else bot.target = new Phaser.Math.Vector2(b.x - (this.hole.x - b.x), b.y - (this.hole.y - b.y))
+      } else if (!bot.target || Phaser.Math.Distance.Between(b.x, b.y, bot.target.x, bot.target.y) < 40) {
+        bot.target = new Phaser.Math.Vector2(
+          Phaser.Math.Between(0, this.worldW),
+          Phaser.Math.Between(0, this.worldH),
+        )
+      }
+
+      const dx = bot.target.x - b.x
+      const dy = bot.target.y - b.y
+      const d = Math.hypot(dx, dy) || 1
+      const botSpeed = Phaser.Math.Clamp(botBase - (bot.r - 20) * 2.5, 120, botBase)
+      b.setVelocity((dx / d) * botSpeed, (dy / d) * botSpeed)
+
+      // player vs bot consume logic
+      const playerBotDist = Phaser.Math.Distance.Between(this.hole.x, this.hole.y, b.x, b.y)
+      if (playerBotDist < (this.holeR + bot.r) * 0.58) {
+        if (this.holeR > bot.r * 1.06) {
+          // player eats bot
+          this.tweens.add({
+            targets: b,
+            x: this.hole.x,
+            y: this.hole.y,
+            scaleX: 0.05,
+            scaleY: 0.05,
+            alpha: 0,
+            duration: 130,
+            onComplete: () => b.destroy(),
+          })
+          this.bots.splice(i, 1)
+          this.holeR += Phaser.Math.Clamp(bot.r / 140, 0.08, 0.45)
+          this.hole.setCircle(this.holeR)
+          this.hole.setDisplaySize(this.holeR * 2, this.holeR * 2)
+          this.sfx.levelUp()
+          this.updateHud()
+          continue
+        }
+
+        if (bot.r > this.holeR * 1.02) {
+          this.setGameOver()
+          return
+        }
+      }
+    }
+
     if (this.hole.body && (this.hole.body as Phaser.Physics.Arcade.Body).speed < 3) this.hole.setVelocity(0, 0)
   }
 
   private updateHud() {
-    this.hudSize.textContent = this.holeR.toFixed(2)
-    this.hudEaten.textContent = String(this.eaten)
+    hudSize.textContent = this.holeR.toFixed(2)
+    hudEaten.textContent = String(this.eaten)
+    hudZone.textContent = this.getZone()
   }
 
   public sfxEnsure() {
     this.sfx.ensure()
+  }
+
+  public toggleMute() {
+    const on = muteBtn.textContent?.includes('ON')
+    this.sfx.setEnabled(!on)
   }
 }
 
@@ -272,12 +405,36 @@ function createGame() {
 }
 
 let game: Phaser.Game | undefined
-const overlay = document.getElementById('overlay')!
-const startBtn = document.getElementById('start') as HTMLButtonElement
 
-startBtn.addEventListener('click', () => {
+function bootOrRestart() {
   overlay.style.display = 'none'
-  if (!game) game = createGame()
+
+  if (game) {
+    game.destroy(true)
+    game = undefined
+  }
+
+  game = createGame()
+
   const scene = game.scene.getScene('game') as GameScene
   scene.sfxEnsure()
+}
+
+startBtn.addEventListener('click', () => {
+  startBtn.textContent = 'Start'
+  overlayTitle.textContent = 'Hole Web'
+  overlayText.textContent = '滑鼠移動 / 觸控拖曳。吞小物件變大，無限模式。'
+  bootOrRestart()
+})
+
+restartBtn.addEventListener('click', () => {
+  bootOrRestart()
+})
+
+muteBtn.addEventListener('click', () => {
+  const isOn = muteBtn.textContent?.includes('ON')
+  muteBtn.textContent = isOn ? 'SFX: OFF' : 'SFX: ON'
+  if (!game) return
+  const scene = game.scene.getScene('game') as GameScene
+  scene.toggleMute()
 })
