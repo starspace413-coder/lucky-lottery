@@ -388,9 +388,8 @@ class GameScene extends Phaser.Scene {
 
     const magnetMult = this.activeSkill === 'magnet' ? 1.5 : 1.0
     const eatRange = this.holeR * 0.92 * magnetMult
-    // Allow near-threshold objects (cars/buildings) to be swallowed instead of feeling stuck.
-    const eatCap = this.holeR * 1.12
-    const hardBlockCap = this.holeR * 1.45
+    // Any object up to 5% larger than the hole can be swallowed. Otherwise, it blocks the player physically.
+    const eatCap = this.holeR * 1.05
 
     // Item pickup
     const itemKids = this.items.getChildren()
@@ -413,10 +412,10 @@ class GameScene extends Phaser.Scene {
       const dy = f.y - this.hole.y
       const d = Math.hypot(dx, dy)
 
-      if (d < eatRange + r * 0.5) {
-        if (r < eatCap) {
+      if (r < eatCap) {
+        // Can be eaten
+        if (d < eatRange + r * 0.5) {
           const pull = Phaser.Math.Clamp((eatRange + r - d) / (eatRange + r), 0, 1)
-          // Near-threshold objects need stronger suction so they feel swallowable.
           const nearThresholdBoost = r > this.holeR * 0.9 ? 1.8 : 1.0
           const pullStr = (this.activeSkill === 'magnet' ? 12.0 : 6.5) * nearThresholdBoost
           f.x -= dx * pull * pullStr * (dtMs / 1000)
@@ -437,7 +436,6 @@ class GameScene extends Phaser.Scene {
             this.holeR += gain
             this.applyHoleSize()
 
-            // Clean scale pulse tween — only on visual, no physics conflict
             this.tweens.killTweensOf(this.holeImage)
             this.tweens.add({
               targets: this.holeImage,
@@ -455,13 +453,16 @@ class GameScene extends Phaser.Scene {
 
             this.updateHud()
           }
-        } else if (r >= hardBlockCap && d < this.holeR * 0.6) {
-          // Only truly oversized objects should push the player back.
-          const push = Math.max(8, (this.holeR * 0.6 - d) * 0.35)
-          const nx = d > 0.001 ? -dx / d : 0
-          const ny = d > 0.001 ? -dy / d : 0
-          this.hole.x += nx * push
-          this.hole.y += ny * push
+        }
+      } else {
+        // Cannot be eaten: Acts as an outer solid physical block. This prevents getting stuck underneath.
+        const blockDist = this.holeR * 0.5 + r * 0.8;
+        if (d < blockDist) {
+          const push = blockDist - d;
+          const nx = d > 0.001 ? -dx / d : 1;
+          const ny = d > 0.001 ? -dy / d : 0;
+          this.hole.x += nx * push;
+          this.hole.y += ny * push;
         }
       }
     }
