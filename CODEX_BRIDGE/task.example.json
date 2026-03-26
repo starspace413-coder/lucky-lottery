@@ -1,0 +1,8 @@
+{
+  "id": "task-20260326-001",
+  "source": "openclaw",
+  "task": "Describe the root cause of the OpenClaw config rewrite issue.",
+  "cwd": "/home/starspace413/.openclaw/workspace",
+  "mode": "analysis",
+  "createdAt": "2026-03-26T23:15:00+08:00"
+}
