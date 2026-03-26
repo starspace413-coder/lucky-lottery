@@ -183,7 +183,7 @@ class GameScene extends Phaser.Scene {
     this.foods = this.add.group()
     this.items = this.add.group()
 
-    for (let i = 0; i < 280; i++) this.spawnFood()
+    for (let i = 0; i < 400; i++) this.spawnFood()
     for (let i = 0; i < 3; i++) this.spawnBot()
     this.spawnItem('boost')
     this.spawnItem('magnet')
@@ -202,10 +202,12 @@ class GameScene extends Phaser.Scene {
 
     this.updateHud()
 
-    this.time.addEvent({ delay: 450, loop: true, callback: () => {
-      if (this.foods.getLength() < 320) {
+    // Aggressively respawn foods to keep the map densely populated
+    this.time.addEvent({ delay: 400, loop: true, callback: () => {
+      if (this.foods.getLength() < 550) {
         const z = this.getZone()
-        for (let i = 0; i < (z === 'Chaos' ? 10 : z === 'Busy' ? 8 : 6); i++) this.spawnFood()
+        const count = z === 'Chaos' ? 14 : z === 'Busy' ? 10 : 7;
+        for (let i = 0; i < count; i++) this.spawnFood(true)
       }
     }})
 
@@ -225,10 +227,9 @@ class GameScene extends Phaser.Scene {
   }
 
   private applyHoleSize() {
-    // Sync physics body
+    // Sync physics body (Maintain circular bounds correctly instead of forcing AABB)
     const body = this.hole.body as Phaser.Physics.Arcade.Body
-    body.setSize(this.holeR * 2, this.holeR * 2)
-    body.updateFromGameObject()
+    body.setCircle(this.holeR)
     // Sync visual image
     this.holeImage.setDisplaySize(this.holeR * 2, this.holeR * 2)
     // Sync camera zoom based on size
@@ -236,7 +237,7 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.setZoom(zoom)
   }
 
-  private spawnFood() {
+  private spawnFood(isRespawn = false) {
     const r = Phaser.Math.Between(8, 42)
     const x = Phaser.Math.Between(r, this.worldW - r)
     const y = Phaser.Math.Between(r, this.worldH - r)
@@ -270,6 +271,20 @@ class GameScene extends Phaser.Scene {
     ;(obj as any).data = { kind: 'food', r, key } satisfies Food
     ;(obj as any).shadow = shadow
     this.foods.add(obj)
+
+    if (isRespawn) {
+      const targetScaleX = obj.scaleX
+      const targetScaleY = obj.scaleY
+      obj.setScale(0)
+      shadow.setScale(0)
+      this.tweens.add({
+        targets: [obj, shadow],
+        scaleX: targetScaleX,
+        scaleY: targetScaleY,
+        duration: 350,
+        ease: 'Back.easeOut'
+      })
+    }
   }
 
   private spawnItem(type: 'boost' | 'magnet') {
@@ -388,8 +403,9 @@ class GameScene extends Phaser.Scene {
 
     const magnetMult = this.activeSkill === 'magnet' ? 1.5 : 1.0
     const eatRange = this.holeR * 0.92 * magnetMult
-    // Any object up to 5% larger than the hole can be swallowed. Otherwise, it blocks the player physically.
-    const eatCap = this.holeR * 1.05
+    // Restored scale constraints to preserve game progression (eat small -> grow -> eat big).
+    // Because we removed the buggy rigid blocking, sliding under un-eatable objects is now smooth.
+    const eatCap = this.holeR * 1.15
 
     // Item pickup
     const itemKids = this.items.getChildren()
@@ -418,8 +434,11 @@ class GameScene extends Phaser.Scene {
           const pull = Phaser.Math.Clamp((eatRange + r - d) / (eatRange + r), 0, 1)
           const nearThresholdBoost = r > this.holeR * 0.9 ? 1.8 : 1.0
           const pullStr = (this.activeSkill === 'magnet' ? 12.0 : 6.5) * nearThresholdBoost
-          f.x -= dx * pull * pullStr * (dtMs / 1000)
-          f.y -= dy * pull * pullStr * (dtMs / 1000)
+          
+          // Clamp move amounts to prevent objects from exploding off-screen during browser lag spikes (dtMax > 100ms)
+          const moveAmt = Math.min(pull * pullStr * (dtMs / 1000), 0.95);
+          f.x -= dx * moveAmt
+          f.y -= dy * moveAmt
           
           if ((f as any).shadow) {
             const sh = (f as any).shadow
@@ -455,15 +474,8 @@ class GameScene extends Phaser.Scene {
           }
         }
       } else {
-        // Cannot be eaten: Acts as an outer solid physical block. This prevents getting stuck underneath.
-        const blockDist = this.holeR * 0.5 + r * 0.8;
-        if (d < blockDist) {
-          const push = blockDist - d;
-          const nx = d > 0.001 ? -dx / d : 1;
-          const ny = d > 0.001 ? -dy / d : 0;
-          this.hole.x += nx * push;
-          this.hole.y += ny * push;
-        }
+        // We removed the solid physical pushback (which was trapping players and locking movement).
+        // Objects too large to eat simply act as a visual canopy; the hole smoothly glides underneath.
       }
     }
 
