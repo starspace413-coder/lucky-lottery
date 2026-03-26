@@ -1,7 +1,7 @@
 {
   "id": "task-20260326-001",
   "status": "done",
-  "summary": "Found the likely runtime write-back path ...",
+  "summary": "已修正圖表初始化時機問題",
   "artifacts": [],
-  "finishedAt": "2026-03-26T23:18:00+08:00"
+  "finishedAt": "2026-03-26T23:30:00+08:00"
 }

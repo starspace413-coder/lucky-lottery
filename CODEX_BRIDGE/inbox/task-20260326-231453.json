@@ -1,0 +1,8 @@
+{
+  "id": "task-20260326-231453",
+  "source": "openclaw",
+  "task": "測試 bridge：請讀取這個 task，然後在 done/ 寫回一份結果 JSON，summary 填 OK。",
+  "cwd": "/home/starspace413/.openclaw/workspace",
+  "mode": "analysis",
+  "createdAt": "2026-03-26T23:14:53+08:00"
+}

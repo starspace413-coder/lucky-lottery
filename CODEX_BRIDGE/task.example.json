@@ -1,8 +1,14 @@
 {
   "id": "task-20260326-001",
-  "source": "openclaw",
-  "task": "Describe the root cause of the OpenClaw config rewrite issue.",
-  "cwd": "/home/starspace413/.openclaw/workspace",
-  "mode": "analysis",
+  "cwd": "/home/starspace413/.openclaw/workspace/token-dashboard",
+  "goal": "修正首頁圖表載入失敗",
+  "expected_output": "能正常顯示圖表，並說明改了什麼",
+  "constraints": [
+    "不要刪除使用者現有修改",
+    "不要做對外操作"
+  ],
+  "timeout": 1800,
+  "priority": "normal",
+  "retryCount": 0,
   "createdAt": "2026-03-26T23:15:00+08:00"
 }
