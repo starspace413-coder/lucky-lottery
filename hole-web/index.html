@@ -3,29 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
     <title>Hole Web</title>
   </head>
   <body>
     <div id="app">
       <div id="game"></div>
       <div id="hud">
-        <div class="row">
-          <div class="pill">Size: <span id="size">1.00</span></div>
-          <div class="pill">Eaten: <span id="eaten">0</span></div>
-          <div class="pill">Zone: <span id="zone">Calm</span></div>
-          <div class="pill">Skill: <span id="skill">None</span></div>
+        <div class="hud-top">
+          <div class="hud-group left">
+            <div class="pill size-pill">🎯 <span id="size">1.00</span></div>
+            <div class="pill eaten-pill">👑 <span id="eaten">0</span></div>
+          </div>
+          <div class="hud-group right">
+            <div class="pill skill-pill"><span id="skill">None</span></div>
+            <div class="pill zone-pill">📍 <span id="zone">Calm</span></div>
+          </div>
         </div>
-        <div class="row bottom-row">
-          <button id="mute" class="pill button" type="button">SFX: ON</button>
-          <button id="restart" class="pill button" type="button">Restart</button>
+        <div class="hud-bottom">
+          <button id="mute" class="circle-btn" type="button">🔊</button>
+          <button id="restart" class="circle-btn danger" type="button">🔄</button>
         </div>
       </div>
       <div id="overlay">
         <div class="panel">
-          <h1 id="overlay-title">Hole Web</h1>
-          <p id="overlay-text">滑鼠移動 / 觸控拖曳。吞小物件變大，無限模式。</p>
-          <button id="start" class="primary" type="button">Start</button>
+          <div class="logo-area">
+            <h1 id="overlay-title">Hole Web</h1>
+          </div>
+          <p id="overlay-text">滑鼠移動 / 觸控拖曳。<br/>吞小物件變大，無限模式。</p>
+          <button id="start" class="primary" type="button">PLAY</button>
         </div>
       </div>
     </div>

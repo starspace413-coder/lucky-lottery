@@ -114,13 +114,58 @@ class GameScene extends Phaser.Scene {
       g.generateTexture('__blank', 2, 2)
     }
 
-    // Background grid
+    // Procedural City Map Background
     const g = this.add.graphics()
-    g.fillStyle(0x0b0c10, 1)
+    const roadColor = 0x3f3f46; // dark gray asphalt
+    const grassColor = 0x4ade80; // vibrant green park
+    const pavementColor = 0xcbd5e1; // light gray concrete block
+    const curbColor = 0x94a3b8; // sidewalk curbs
+    
+    // Fill background with road asphalt
+    g.fillStyle(roadColor, 1)
     g.fillRect(0, 0, this.worldW, this.worldH)
-    g.lineStyle(1, 0x111827, 1)
-    for (let x = 0; x <= this.worldW; x += 80) g.lineBetween(x, 0, x, this.worldH)
-    for (let y = 0; y <= this.worldH; y += 80) g.lineBetween(0, y, this.worldW, y)
+    
+    const blockSize = 320;
+    const roadWidth = 120;
+    const cell = blockSize + roadWidth; // 440
+    
+    // Draw city blocks
+    for (let x = 0; x <= this.worldW + cell; x += cell) {
+      for (let y = 0; y <= this.worldH + cell; y += cell) {
+        // Block type (1 in 4 chance for a park via coordinates)
+        const isPark = ((x + y * 3) / cell) % 4 === 0;
+        
+        // 2.5D Sidewalk Drop Shadow
+        g.fillStyle(0x1f2937, 0.4)
+        g.fillRoundedRect(x + (roadWidth / 2) + 12, y + (roadWidth / 2) + 16, blockSize, blockSize, 24)
+
+        // Sidewalk border (curb)
+        g.fillStyle(curbColor, 1)
+        g.fillRoundedRect(x + (roadWidth / 2), y + (roadWidth / 2), blockSize, blockSize, 24)
+        
+        // Inner block (grass or building ground)
+        g.fillStyle(isPark ? grassColor : pavementColor, 1)
+        g.fillRoundedRect(x + (roadWidth / 2) + 12, y + (roadWidth / 2) + 12, blockSize - 24, blockSize - 24, 16)
+      }
+      
+      // Vertical yellow dashed lines
+      g.lineStyle(6, 0xfacc15, 1)
+      for (let dashedY = 0; dashedY <= this.worldH; dashedY += 50) {
+         if (dashedY % cell > (roadWidth / 2 + 10) && dashedY % cell < cell - (roadWidth / 2 + 10)) {
+           if (Math.floor(dashedY / 50) % 2 === 0) g.lineBetween(x, dashedY, x, dashedY + 25)
+         }
+      }
+    }
+    
+    // Horizontal yellow dashed lines
+    g.lineStyle(6, 0xfacc15, 1)
+    for (let y = 0; y <= this.worldH + cell; y += cell) {
+      for (let dashedX = 0; dashedX <= this.worldW; dashedX += 50) {
+         if (dashedX % cell > (roadWidth / 2 + 10) && dashedX % cell < cell - (roadWidth / 2 + 10)) {
+           if (Math.floor(dashedX / 50) % 2 === 0) g.lineBetween(dashedX, y, dashedX + 25, y)
+         }
+      }
+    }
 
     // Physics body — invisible, only for collision / world bounds
     this.hole = this.physics.add.image(this.worldW / 2, this.worldH / 2, '__blank')
@@ -131,8 +176,9 @@ class GameScene extends Phaser.Scene {
     // Visual hole image — separate from physics, cleanly animated
     const holeKey = this.pickAvailable('hole', 'ph-hole')
     this.holeImage = this.add.image(this.worldW / 2, this.worldH / 2, holeKey)
-      .setDepth(10)
+      .setDepth(4) // Underneath object shadows for 2.5D drop-in depth effect
       .setDisplaySize(this.holeR * 2, this.holeR * 2)
+
 
     this.foods = this.add.group()
     this.items = this.add.group()
@@ -216,9 +262,13 @@ class GameScene extends Phaser.Scene {
       ])
     }
 
+    const shadow = this.add.image(x + 6, y + 8, key).setDepth(4.5).setTint(0x000000).setAlpha(0.35)
+    shadow.setDisplaySize(r * 2.8, r * 2.8)
+
     const obj = this.add.image(x, y, key).setDepth(5)
     obj.setDisplaySize(r * 2.8, r * 2.8)
     ;(obj as any).data = { kind: 'food', r, key } satisfies Food
+    ;(obj as any).shadow = shadow
     this.foods.add(obj)
   }
 
@@ -226,12 +276,19 @@ class GameScene extends Phaser.Scene {
     const x = Phaser.Math.Between(80, this.worldW - 80)
     const y = Phaser.Math.Between(80, this.worldH - 80)
     const key = type === 'boost' ? 'icon-boost' : 'icon-magnet'
+    const shadow = this.add.image(x + 8, y + 10, key).setDepth(5.5).setTint(0x000000).setAlpha(0.3)
     const item = this.add.image(x, y, key).setDepth(6)
     this.tweens.add({
       targets: item, scale: { from: 0.75, to: 1.0 },
-      alpha: { from: 0.8, to: 1 }, yoyo: true, repeat: -1, duration: 800
+      alpha: { from: 0.8, to: 1 }, yoyo: true, repeat: -1, duration: 800,
+      onUpdate: () => {
+        shadow.setScale(item.scaleX * 0.9, item.scaleY * 0.9)
+        shadow.x = item.x + 8 * item.scaleX
+        shadow.y = item.y + 10 * item.scaleY
+      }
     })
     ;(item as any).data = { kind: 'item', type } satisfies Item
+    ;(item as any).shadow = shadow
     this.items.add(item)
   }
 
@@ -247,6 +304,9 @@ class GameScene extends Phaser.Scene {
 
     const r = Phaser.Math.Between(Math.max(12, this.holeR - 10), Math.max(20, this.holeR + 16))
     const key = this.pickAvailable('hole', 'ph-hole')
+    const shadow = this.add.image(x + 10, y + 12, key).setDepth(8.5).setTint(0x000000).setAlpha(0.35)
+    shadow.setDisplaySize(r * 2, r * 2)
+
     const sprite = this.physics.add.image(x, y, key)
       .setDepth(9)
       .setTint(0xff5555)
@@ -254,6 +314,8 @@ class GameScene extends Phaser.Scene {
       .setCircle(r)
       .setCollideWorldBounds(true)
       .setDisplaySize(r * 2, r * 2)
+      
+    ;(sprite as any).shadow = shadow
 
     this.bots.push({
       sprite, r,
@@ -275,9 +337,9 @@ class GameScene extends Phaser.Scene {
     if (this.gameOver) return
     this.gameOver = true
     this.hole.setVelocity(0, 0)
-    overlayTitle.textContent = '你被吞掉了 💀'
-    overlayText.textContent = `最終 Size ${this.holeR.toFixed(2)}，吞噬 ${this.eaten} 個物件。Restart 再戰。`
-    startBtn.textContent = 'Restart'
+    overlayTitle.textContent = 'GAME OVER'
+    overlayText.innerHTML = `Size: 🎯 ${this.holeR.toFixed(2)}<br/>Eaten: 👑 ${this.eaten}`
+    startBtn.textContent = 'RESTART'
     overlay.style.display = 'grid'
   }
 
@@ -287,6 +349,7 @@ class GameScene extends Phaser.Scene {
     this.sfx.skillPickup()
     hudSkill.textContent = type === 'boost' ? '⚡ BOOST' : '🧲 MAGNET'
     hudSkill.style.color = type === 'boost' ? '#fde047' : '#f472b6'
+    hudSkill.parentElement!.classList.add('active')
   }
 
   update(_: number, dtMs: number) {
@@ -305,6 +368,7 @@ class GameScene extends Phaser.Scene {
         this.activeSkill = 'none'
         hudSkill.textContent = 'None'
         hudSkill.style.color = ''
+        hudSkill.parentElement!.classList.remove('active')
       }
     }
 
@@ -335,6 +399,7 @@ class GameScene extends Phaser.Scene {
       if (Phaser.Math.Distance.Between(this.hole.x, this.hole.y, it.x, it.y) < this.holeR + 16) {
         const d = (it as any).data as Item
         this.activateSkill(d.type)
+        if ((it as any).shadow) (it as any).shadow.destroy()
         this.items.remove(it, true, true)
       }
     }
@@ -356,8 +421,15 @@ class GameScene extends Phaser.Scene {
           const pullStr = (this.activeSkill === 'magnet' ? 12.0 : 6.5) * nearThresholdBoost
           f.x -= dx * pull * pullStr * (dtMs / 1000)
           f.y -= dy * pull * pullStr * (dtMs / 1000)
+          
+          if ((f as any).shadow) {
+            const sh = (f as any).shadow
+            sh.x = f.x + 6 + dx * 0.1 // 2.5D depth shift during pull
+            sh.y = f.y + 8 + dy * 0.1
+          }
 
           if (d < this.holeR * 0.6) {
+            if ((f as any).shadow) (f as any).shadow.destroy()
             this.foods.remove(f, true, true)
             this.eaten += 1
             const before = this.holeR
@@ -458,12 +530,20 @@ class GameScene extends Phaser.Scene {
       } else {
         b.setVelocity(0, 0)
       }
+      
+      if ((b as any).shadow) {
+        const sh = (b as any).shadow
+        sh.x = b.x + 10
+        sh.y = b.y + 12
+        sh.setDisplaySize(bot.r * 2, bot.r * 2)
+      }
 
       // Player vs bot collision
       if (distP < (this.holeR + bot.r) * 0.58) {
         if (this.holeR > bot.r * 1.05) {
           // Player eats bot
           this.bots.splice(i, 1)
+          if ((b as any).shadow) (b as any).shadow.destroy()
           this.tweens.add({ targets: b, scaleX: 0.05, scaleY: 0.05, alpha: 0, duration: 150, onComplete: () => b.destroy() })
           this.holeR += Phaser.Math.Clamp(bot.r / 140, 0.08, 0.45)
           this.applyHoleSize()
@@ -477,10 +557,33 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  private lastSizeStr = '1.00';
+  private lastEaten = 0;
+
+  private triggerPop(el: HTMLElement) {
+    const parent = el.parentElement;
+    if (parent) {
+      parent.classList.remove('pop');
+      void parent.offsetWidth; // reflow
+      parent.classList.add('pop');
+    }
+  }
+
   private updateHud() {
-    hudSize.textContent = this.holeR.toFixed(2)
-    hudEaten.textContent = String(this.eaten)
-    hudZone.textContent = this.getZone()
+    const newSizeStr = this.holeR.toFixed(2);
+    if (this.lastSizeStr !== newSizeStr) {
+      hudSize.textContent = newSizeStr;
+      this.triggerPop(hudSize);
+      this.lastSizeStr = newSizeStr;
+    }
+    
+    if (this.lastEaten !== this.eaten) {
+      hudEaten.textContent = String(this.eaten);
+      this.triggerPop(hudEaten);
+      this.lastEaten = this.eaten;
+    }
+    
+    hudZone.textContent = this.getZone();
   }
 
   public sfxEnsure() { this.sfx.ensure() }
@@ -517,9 +620,9 @@ function bootOrRestart() {
 }
 
 startBtn.addEventListener('click', () => {
-  startBtn.textContent = 'Start'
+  startBtn.textContent = 'PLAY'
   overlayTitle.textContent = 'Hole Web'
-  overlayText.textContent = '滑鼠移動 / 觸控拖曳。吞小物件變大，無限模式。'
+  overlayText.innerHTML = '滑鼠移動 / 觸控拖曳。<br/>吞小物件變大，無限模式。'
   bootOrRestart()
 })
 
@@ -527,7 +630,7 @@ restartBtn.addEventListener('click', bootOrRestart)
 
 muteBtn.addEventListener('click', () => {
   sfxEnabled = !sfxEnabled
-  muteBtn.textContent = sfxEnabled ? 'SFX: ON' : 'SFX: OFF'
+  muteBtn.textContent = sfxEnabled ? '🔊' : '🔇'
   if (!game) return
   ;(game.scene.getScene('game') as GameScene).toggleMute(sfxEnabled)
 })

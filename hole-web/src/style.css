@@ -1,15 +1,17 @@
 /* Full-screen responsive layout with safe-area support */
 :root {
-  --bg: #0b0c10;
-  --fg: #e5e7eb;
-  --muted: rgba(229, 231, 235, 0.75);
-  --pill: rgba(17, 24, 39, 0.72);
-  --pill-border: rgba(255, 255, 255, 0.12);
-  --accent: #8b5cf6;
+  --bg: #1e1e24; /* Fallback for older browsers */
+  --accent: #ffb800; /* Vibrant Yellow/Orange */
+  --accent-shadow: #cc9300;
+  
+  --pill-bg: rgba(255, 255, 255, 0.9);
+  --pill-text: #111;
+  --size-color: #3b82f6; /* Blue */
+  --eaten-color: #ef4444; /* Red */
+  --skill-color: #ffffff; /* Pink/Yellow dynamically */
+  --zone-color: #10b981; /* Green */
 
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  color: var(--fg);
-  background: var(--bg);
+  font-family: 'Nunito', system-ui, -apple-system, sans-serif;
 }
 
 html, body {
@@ -17,12 +19,14 @@ html, body {
   margin: 0;
   overflow: hidden;
   touch-action: none; /* we handle gestures */
+  user-select: none;
 }
 
 #app {
   position: fixed;
   inset: 0;
-  background: radial-gradient(1200px 800px at 50% 40%, #111827, #05060a);
+  background: radial-gradient(1200px 800px at 50% 40%, #2a2d3e, #13141c);
+  box-shadow: inset 0 0 100px rgba(0,0,0,0.85); /* 2.5D depth screen edge shadow */
 }
 
 #game {
@@ -36,86 +40,174 @@ html, body {
   inset: 0;
   pointer-events: none;
   padding:
-    calc(env(safe-area-inset-top) + 10px)
-    calc(env(safe-area-inset-right) + 10px)
-    calc(env(safe-area-inset-bottom) + 10px)
-    calc(env(safe-area-inset-left) + 10px);
+    calc(env(safe-area-inset-top) + 16px)
+    calc(env(safe-area-inset-right) + 16px)
+    calc(env(safe-area-inset-bottom) + 16px)
+    calc(env(safe-area-inset-left) + 16px);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  justify-content: space-between;
 }
 
-#hud .row {
+.hud-top {
   display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
-#hud .bottom-row {
-  margin-top: auto;
+.hud-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
+.hud-group.right {
+  align-items: flex-end;
+}
+
+.hud-bottom {
+  display: flex;
+  justify-content: space-between;
+  pointer-events: auto;
+}
+
+/* Vibrant Pills */
 .pill {
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 8px 16px;
   border-radius: 999px;
-  background: var(--pill);
-  border: 1px solid var(--pill-border);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  font-size: 14px;
+  background: var(--pill-bg);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.2);
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--pill-text);
+  border: 2px solid white;
+  transition: transform 0.1s;
 }
 
-.button {
+.pill.pop {
+  animation: pill-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes pill-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.size-pill { color: var(--size-color); }
+.eaten-pill { color: var(--eaten-color); }
+.zone-pill { color: var(--zone-color); }
+.skill-pill { display: none; } /* Hide by default until skill is active */
+.skill-pill.active { display: inline-flex; background: #333; color: white; border-color: #333; }
+
+/* Circular bottom buttons */
+.circle-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 3px solid white;
+  background: #3b82f6;
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
   cursor: pointer;
-  user-select: none;
+  box-shadow: 0 6px 0 #2563eb;
+  transition: transform 0.1s, box-shadow 0.1s;
+  display: grid;
+  place-items: center;
+  padding: 0;
 }
 
+.circle-btn.danger {
+  background: #ef4444;
+  box-shadow: 0 6px 0 #dc2626;
+}
+
+.circle-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 currentColor;
+}
+
+/* Start Menu Overlay */
 #overlay {
   position: absolute;
   inset: 0;
   z-index: 30;
   display: grid;
   place-items: center;
-  background: rgba(0,0,0,0.35);
-  backdrop-filter: blur(2px);
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
 #overlay .panel {
-  width: min(520px, calc(100vw - 32px));
+  width: min(340px, calc(100vw - 32px));
+  border-radius: 24px;
+  padding: 32px 24px;
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  border: 4px solid white;
+  box-shadow: 0 12px 0 rgba(100,20,100,0.4), 0 20px 25px rgba(0,0,0,0.3);
+  text-align: center;
+  color: white;
+  animation: panel-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes panel-enter {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.logo-area {
+  background: rgba(255,255,255,0.2);
+  padding: 12px;
   border-radius: 16px;
-  padding: 18px 18px 16px;
-  background: rgba(17, 24, 39, 0.82);
-  border: 1px solid rgba(255,255,255,0.12);
+  margin-bottom: 16px;
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.3);
 }
 
 #overlay h1 {
-  margin: 0 0 8px;
-  font-size: 22px;
-  letter-spacing: 0.2px;
+  margin: 0;
+  font-size: 36px;
+  letter-spacing: 1px;
+  text-shadow: 2px 4px 0 rgba(0,0,0,0.2);
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 #overlay p {
-  margin: 0 0 14px;
-  color: var(--muted);
-  line-height: 1.45;
-  font-size: 14px;
+  margin: 0 0 24px;
+  color: #fdf2f8;
+  line-height: 1.5;
+  font-size: 16px;
+  font-weight: 700;
+  text-shadow: 1px 2px 0 rgba(0,0,0,0.1);
 }
 
+/* 3D Play Button */
 #overlay .primary {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 0;
+  padding: 16px;
+  border-radius: 16px;
+  border: 3px solid white;
   background: var(--accent);
   color: white;
-  font-weight: 700;
-  font-size: 15px;
+  font-weight: 900;
+  font-size: 24px;
+  letter-spacing: 1px;
   cursor: pointer;
+  box-shadow: 0 8px 0 var(--accent-shadow), 0 15px 15px rgba(0,0,0,0.2);
+  transition: transform 0.1s, box-shadow 0.1s;
+  text-transform: uppercase;
+  text-shadow: 1px 2px 0 rgba(0,0,0,0.2);
+}
+
+#overlay .primary:active {
+  transform: translateY(6px);
+  box-shadow: 0 2px 0 var(--accent-shadow), 0 5px 5px rgba(0,0,0,0.2);
 }
 
 canvas {
