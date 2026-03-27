@@ -69,31 +69,33 @@ class GameScene extends Phaser.Scene {
   constructor() { super('game') }
 
   preload() {
-    // Invisible texture for physics body - will be created in create()
-    this.load.image('hole', 'assets/ai/openai/hole/001-top-down-2d-game-sprite-stylized-black-h.png')
-    this.load.image('tree', 'assets/ai/openai/tree/001-top-down-2d-game-sprite-small-stylized-t.png')
-    this.load.image('car', 'assets/ai/openai/car/001-top-down-2d-game-sprite-compact-blue-cit.png')
-    this.load.image('building', 'assets/ai/openai/building/001-top-down-2d-game-sprite-small-city-build.png')
-    this.load.image('lamp', 'assets/ai/openai/lamp/001-top-down-2d-game-sprite-street-lamp-cent.png')
-    this.load.image('bench', 'assets/ai/openai/bench/001-top-down-2d-game-sprite-park-bench-cente.png')
-    this.load.image('trash', 'assets/ai/openai/trash/001-top-down-2d-game-sprite-trash-can-center.png')
-    this.load.image('tower', 'assets/ai/openai/tower/001-top-down-2d-game-sprite-rooftop-office-b.png')
-    this.load.image('bus', 'assets/ai/openai/bus/001-top-down-2d-game-sprite-bus-centered-tra.png')
-    this.load.image('house', 'assets/ai/openai/house/001-top-down-2d-game-sprite-small-house-roof.png')
+    const b = import.meta.env.BASE_URL; // Ensures trailing slash is resolved properly regardless of location bar URL
 
-    this.load.svg('ph-hole', 'assets/ai/placeholder-hole.svg', { width: 256, height: 256 })
-    this.load.svg('ph-tree', 'assets/ai/placeholder-tree.svg', { width: 256, height: 256 })
-    this.load.svg('ph-car', 'assets/ai/placeholder-car.svg', { width: 256, height: 256 })
-    this.load.svg('ph-building', 'assets/ai/placeholder-building.svg', { width: 256, height: 256 })
-    this.load.svg('ph-lamp', 'assets/ai/placeholder-lamp.svg', { width: 256, height: 256 })
-    this.load.svg('ph-bench', 'assets/ai/placeholder-bench.svg', { width: 256, height: 256 })
-    this.load.svg('ph-trash', 'assets/ai/placeholder-trash.svg', { width: 256, height: 256 })
-    this.load.svg('ph-tower', 'assets/ai/placeholder-tower.svg', { width: 256, height: 256 })
-    this.load.svg('ph-bus', 'assets/ai/placeholder-bus.svg', { width: 256, height: 256 })
-    this.load.svg('ph-house', 'assets/ai/placeholder-house.svg', { width: 256, height: 256 })
+    // Use absolute base URL so that Github Pages (or any subdirectory hosting) resolves correctly
+    this.load.image('hole', b + 'assets/ai/openai/hole/001-top-down-2d-game-sprite-stylized-black-h.png')
+    this.load.image('tree', b + 'assets/ai/openai/tree/001-top-down-2d-game-sprite-small-stylized-t.png')
+    this.load.image('car', b + 'assets/ai/openai/car/001-top-down-2d-game-sprite-compact-blue-cit.png')
+    this.load.image('building', b + 'assets/ai/openai/building/001-top-down-2d-game-sprite-small-city-build.png')
+    this.load.image('lamp', b + 'assets/ai/openai/lamp/001-top-down-2d-game-sprite-street-lamp-cent.png')
+    this.load.image('bench', b + 'assets/ai/openai/bench/001-top-down-2d-game-sprite-park-bench-cente.png')
+    this.load.image('trash', b + 'assets/ai/openai/trash/001-top-down-2d-game-sprite-trash-can-center.png')
+    this.load.image('tower', b + 'assets/ai/openai/tower/001-top-down-2d-game-sprite-rooftop-office-b.png')
+    this.load.image('bus', b + 'assets/ai/openai/bus/001-top-down-2d-game-sprite-bus-centered-tra.png')
+    this.load.image('house', b + 'assets/ai/openai/house/001-top-down-2d-game-sprite-small-house-roof.png')
 
-    this.load.svg('icon-boost', 'assets/ai/placeholder-boost.svg', { width: 64, height: 64 })
-    this.load.svg('icon-magnet', 'assets/ai/placeholder-magnet.svg', { width: 64, height: 64 })
+    this.load.svg('ph-hole', b + 'assets/ai/placeholder-hole.svg', { width: 256, height: 256 })
+    this.load.svg('ph-tree', b + 'assets/ai/placeholder-tree.svg', { width: 256, height: 256 })
+    this.load.svg('ph-car', b + 'assets/ai/placeholder-car.svg', { width: 256, height: 256 })
+    this.load.svg('ph-building', b + 'assets/ai/placeholder-building.svg', { width: 256, height: 256 })
+    this.load.svg('ph-lamp', b + 'assets/ai/placeholder-lamp.svg', { width: 256, height: 256 })
+    this.load.svg('ph-bench', b + 'assets/ai/placeholder-bench.svg', { width: 256, height: 256 })
+    this.load.svg('ph-trash', b + 'assets/ai/placeholder-trash.svg', { width: 256, height: 256 })
+    this.load.svg('ph-tower', b + 'assets/ai/placeholder-tower.svg', { width: 256, height: 256 })
+    this.load.svg('ph-bus', b + 'assets/ai/placeholder-bus.svg', { width: 256, height: 256 })
+    this.load.svg('ph-house', b + 'assets/ai/placeholder-house.svg', { width: 256, height: 256 })
+
+    this.load.svg('icon-boost', b + 'assets/ai/placeholder-boost.svg', { width: 64, height: 64 })
+    this.load.svg('icon-magnet', b + 'assets/ai/placeholder-magnet.svg', { width: 64, height: 64 })
   }
 
   create() {
